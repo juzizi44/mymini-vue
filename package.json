@@ -1,0 +1,8 @@
+{
+  "name": "mymini-vue",
+  "version": "1.0.0",
+  "main": "index.js",
+  "repository": "git@github.com:juzizi44/mymini-vue.git",
+  "author": "范思棋 <fansq19@lzu.edu.cn>",
+  "license": "MIT"
+}
