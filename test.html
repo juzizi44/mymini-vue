@@ -1,160 +1,313 @@
-<html>
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
 
 <body>
+    <div id="app"></div>
+    <script>
+        // propsKey 属性是否应该作为DOM Property被设置。
+        // true 表示可以使用DOM Property设置，el[propsKey] = xx, false表示只可以用setAttribute设置
+        function shouldSetAsProps(el, propsKey, value) {
+            // 所有表单元素都具有form属性表示
+            if (propsKey === 'form' && el.tagName.toLowerCase() === 'input')
+                return false
+            return propsKey in el
+        }
+
+                // 渲染器
+                function createRenderer(options = {}) {
+                    const {
+                        createElement,
+                        setElementText,
+                        insert,
+                        patchProps
+                    } = options
+
+                // 挂载函数
+                function mountElement(vnode, container) {
+                    // 通过vnode的el属性获得真实DOM
+                    const el = vnode.el = createElement(vnode.type)
+                    // children处理
+                    if (typeof vnode.children === 'string') {
+                        // 如果节点值是string，设置文本
+                        setElementText(el, vnode.children)
+                    } else if (Array.isArray(vnode.children)) {
+                        // children是一个数组，遍历这个数组，数组每个元素都是一个vnode
+                        // 调用patch将他们挂载上去. oldVNode=null, container = el
+                        vnode.children.forEach(child => {
+                            patch(null, child, el)
+                        })
+                    }
+                // 设置vnode属性
+                if (vnode.props) {
+                    for (const propsKey in vnode.props) {
+                        const value = vnode.props[propsKey];
+                        patchProps(el, propsKey, null, value)
+                    }
+                }
+                // 将el挂载在container上
+                insert(el, container)
+            }
+
+                // 更新函数
+                function patchElement(oldVNode, newVNode) {
+                    const el = newVNode.el = oldVNode.el,
+                        oldProps = oldVNode.props,
+                        newProps = newVNode.props
+                    // 更新Props
+                    for (const key in newProps) {
+                        if (newProps[key] !== oldProps[key]) {
+                            patchProps(el, key, oldProps[key], newProps[key])
+                        }
+                }
+                for (const key in oldProps) {
+                    if (!(key in newProps)) {
+                        patchProps(el, key, oldProps[key], null)
+                    }
+                }
+                // 更新子节点
+                patchChildren(oldVNode, newVNode, el)
+            }
+
+                function patchChildren(oldVNode, newVNode, container) {
+                    // 判断新子节点的类型是否是文本类型
+                    if (typeof newVNode.children === 'string') {//如果是
+                        if (Array.isArray(oldVNode.children)) {  //如果旧子节点是组合子节点类型，则先把每一个都卸载掉
+                            oldVNode.children.forEach(child => unmounted(child))
+                        }
+                    if (oldVNode.children !== newVNode.children)//然后再去挂载文本
+                        setElementText(container, newVNode.children)
+                } else if (Array.isArray(newVNode.children)) {
+                    if (Array.isArray(oldVNode.children)) {
+                        //简单Diff
+                        const oldChidren = oldVNode.children,
+                            newChildren = newVNode.children,
+                            oldLen = oldChildren.length,
+                            newLen = newChildren.length
+
+                        let lastIndex = 0
+                        for (let i = 0; i < newLen; i++) { //遍历新子节点
+                            const oldVNode = oldChidren[i]
+                            let j = 0,
+                                find = false //是否匹配标志
+                            for (j; j < oldLen; j++) {
+                                const oldVNode = oldChidren[j]
+                                if (newVNode.key == oldVNode.key) {
+                                    find = true
+                                    patch(oldVNode, newVNode, container)
+                                    if (j < lastIndex) {
+                                        const prevNode = newChildren[i - 1]
+                                        if (prevNode) {
+                                            const anchor = prevNode.el.nextSibling
+                                            insert(newVNode.el, container, anchor)   //.el代表真实的dom
+
+                                        }
+                                    } else {
+                                        lastIndex = j
+                                    }
+                                    break
+                                }
+                            }
+                            if (!find) { //
+                                const prevNode = newChildren[i - 1]
+                                let anchor = null
+                                if (prevNode) {
+                                    anchor = prevNode.el.nextSibling
+                                } else {
+                                    anchor = container.firstChild
+                                }
+
+                            }
+
+
+
+                        }
+
+
+                    }
+                }
+
+
+
+
+            }
+
+
+
+
+
+
+
+                // 补丁函数
+                function patch(oldVNode, newVNode, container) {
+                    // oldVNode存在，新旧vnode的type不同
+                    if (oldVNode && oldVNode.type !== newVNode.type) {
+                        unmounted(oldVNode)
+                        oldVNode = null
+                    }
+                    // 代码运行到这说明oldVNode和newVNode的type是相同的
+                    const { type } = newVNode
+                    // newVNode type是string, 说明是普通标签元素. 如果type是object，则描述的是组件
+                    if (typeof type === 'string') {
+                        if (!oldVNode) {
+                            // 挂载
+                            mountElement(newVNode, container)
+                        } else {
+                        patchElement(oldVNode, newVNode)
+                    }
+                    } else if (typeof type === 'object') {
+                        // 组件类型的VNode
+                    } else if (type === 'xxx') {
+                        // 其他类型的VNode
+                    }
+
+                }
+
+                // 卸载函数
+                function unmounted(vnode) {
+                    const parent = vnode.el.parentNode
+                    if (parent) parent.removeChild(vnode.el)
+                }
+
+                // 渲染函数
+                function render(vnode, container) {
+                    if (vnode) {
+                        // 新vnode存在，将其与旧vnode一起传递给patch函数打补丁
+                        patch(container._vnode, vnode, container)
+                    } else {
+                        if (container._vnode) {
+                            // 新vnode不存在，旧vnode存在，说明是卸载(unmount)操作
+                            // 清空DOM
+                            unmounted(container._vnode)
+                        }
+                }
+                container._vnode = vnode // vnode改成旧的
+            }
+
+                // 同构渲染
+                function hydrate(vnode, container) {
+
+                }
+
+                    return {
+                        render,
+                        hydrate
+                    }
+                }
+
+                // normalizeClass里处理Object.
+                function handleObject(set, obj) {
+                    for (const key in obj) {
+                        if (obj[key]) set.add(key) // 如果对象的值为true, set里把键(className)加进去
+                    }
+                }
+
+                    function normalizeClass(classValue) {
+                        // 字符串
+                        if (typeof classValue === 'string') return classValue
+                        let resultClassSet = new Set()
+                        // 数组和对象情况
+                        if (Array.isArray(classValue)) {
+                            for (const value of classValue) {
+                                if (typeof value === 'string') resultClassSet.add(value)
+                                else {
+                                    // 对象
+                                    handleObject(resultClassSet, value)
+                                }
+                            }
+                        } else {
+                            // 对象
+                            handleObject(resultClassSet, classValue)
+                        }
+                        return Array.from(resultClassSet).join(' ').trim()
+                    }
+
+                    const vnode = {
+                        type: 'div',
+                        props: {
+                            id: 'foo',
+                            class: normalizeClass([
+                                'ds',
+                                {
+                                    test1: true,
+                                    test2: false,
+                                    test3: true
+                                }
+                            ]),
+                            onClick: [
+                                () => {
+                                    console.log(1)
+                                },
+                                () => {
+                                    console.log(2)
+                                }
+                            ]
+                        },
+                        children: [
+                            {
+                                type: 'h1',
+                                children: 'hello h1'
+                            }
+                        ]
+                    }
+                    const renderer = createRenderer({
+                        createElement(tag) {
+                            return document.createElement(tag)
+                        },
+                        setElementText(el, text) {
+                            el.textContent = text
+                        },
+                        insert(el, parent, anchor = null) {
+                            parent.insertBefore(el, anchor)
+                        },
+                    patchProps(el, propsKey, previousValue, nextValue) {
+                        if (/^on/.test(propsKey)) { // on开头的属性是事件
+                            const invokers = el._vei || (el._vei = {})
+                            // 根据事件名获取invoker
+                            let invoker = invokers[propsKey]
+                            const eventName = propsKey.slice(2).toLowerCase()
+                            if (nextValue) {
+                                if (!invoker) { // invoker不存在
+                                    invoker = el._vei[propsKey] = (event) => { // 伪造的事件处理函数放到el._vei[propsKey]中
+                                        if (event.timestamp < invoker.attached) return; // 事件发生的时间 早于 事件处理函数绑定的时间，则不执行事件处理函数
+                                        if (Array.isArray(invoker.value)) { // invoker.value 是一个数组
+                                            invoker.value.forEach(fn => fn(event))
+                                        } else {
+                                            invoker.value(event) // 当伪造事件处理函数invoker执行的时候，会执行内部真正的事件处理函数invoker.value,传递event进去
+                                        }
+                                    }
+                                    invoker.value = nextValue // 真正的事件处理函数赋值给invoker.value
+                                    invokers.attached = performance.now() // 事件绑定时间
+                                    el.addEventListener(eventName, invoker)
+                                } else {
+                                    // invoker存在，nextValue存在，那就是更新。把伪造事件处理函数invoker的value更新
+                                    invoker.value = nextValue
+                                }
+                            } else if (invoker) { // nextValue不存在，而invoker存在，说明要把原来的事件移除绑定
+                                el.removeEventListener(eventName, invoker)
+                            }
+                        }
+                    if (propsKey === ' class') {
+                        el.className = nextValue
+                    } else if (shouldSetAsProps(el, propsKey, nextValue)) { // HTML Attribute 跟 DOM Property有对应
+                        const type = typeof el[propsKey]
+
+                        // 如果type 是布尔类型的值而且value是空字符串，说明应该设置为true，而不是false
+                        if (type === 'boolean' && nextValue === '') el[propsKey] = true // 矫正设置DOM Property
+                        else el[propsKey] = nextValue // 设置DOM Property
+
+                        } else { // HTML Attribute 和 DOM Property 没对应，比如class 和 className
+                            el.setAttribute(propsKey, vnode.props[propsKey])
+                        }
+                    }
+                })
+                    renderer.render(vnode, document.getElementById('app'))
+
+</script>
 </body>
 
 </html>
-
-<script>
-    function track(target, key) {
-        if (!activeEffect) return
-        let depsMap = bucket.get(target)
-        if (!depsMap) {
-            bucket.set(target, (depsMap = new Map()))
-        }
-        let deps = depsMap.get(key)
-        if (!deps) {
-            depsMap.set(key, (deps = new Set()))
-        }
-        deps.add(activeEffect)
-        activeEffect.deps.push(deps)
-    }
-
-    function trigger(target, key) {
-        const depsMap = bucket.get(target)
-        if (!depsMap) return
-        const effects = depsMap.get(key)
-
-        const effectsToRun = new Set()
-        effects && effects.forEach(effectFn => {
-            if (effectFn !== activeEffect) {
-                effectsToRun.add(effectFn)
-            }
-        })
-        effectsToRun.forEach(effectFn => {
-            if (effectFn.options.scheduler) {
-                effectFn.options.scheduler(effectFn)
-            } else {
-                effectFn()
-            }
-        })
-    }
-
-    let activeEffect
-    const effectStack = []
-    function effect(fn, options = {}) {
-        const effectFn = () => {
-            cleanup(effectFn)
-            activeEffect = effectFn
-            effectStack.push(effectFn)
-            const res = fn()
-            effectStack.pop()
-            activeEffect = effectStack[effectStack.length - 1]
-            return res
-        }
-        effectFn.options = options
-        effectFn.deps = []
-        if (!options.lazy) {
-            effectFn()
-        }
-        return effectFn
-    }
-
-
-
-    function cleanup(effectFn) {
-        for (let i = 0; i < effectFn.deps.length; i++) {
-            const deps = effectFn.deps[i]
-            deps.delete(effectFn)
-        }
-        effectFn.deps.length = 0
-    }
-
-    const bucket = new WeakMap()
-
-
-
-
-
-
-    // watch 函数接收两个参数，source 是响应式数据，cb 是回调函数
-    function watch(source, cb) {
-        // 定义 getter
-        let getter
-        // 如果 source 是函数，说明用户传递的是 getter，所以直接把 source 赋s值给 getter
-        if (typeof source === 'function') {
-            getter = source
-        } else {
-            // 否则按照原来的实现调用 traverse 递归地读取
-            // 触发读取操作，从而建立联系
-            getter = () => traverse(source)
-        }
-        // 定义旧值与新值
-        let oldValue, newValue
-
-        // 使用 effect 注册副作用函数时，开启 lazy 选项，并把返回值存储到effectFn 中以便后续手动调用
-        const effectFn = effect(
-            // 执行 getter
-            () => getter(),
-            {
-                lazy: true,
-                scheduler() {
-                    // 在 scheduler 中重新执行副作用函数，得到的是新值
-                    newValue = effectFn()
-                    // 将旧值和新值作为回调函数的参数
-                    cb(oldValue, newValue) // 当数据变化时，调用回调函数 cb
-                    // 更新旧值，不然下一次会得到错误的旧值
-                    oldValue = newValue
-                }
-            }
-        )
-        // 手动调用副作用函数，拿到的值就是旧值
-        oldValue = effectFn()
-    }
-
-    function traverse(value, seen = new Set()) {
-        // 如果要读取的数据是原始值，或者已经被读取过了，那么什么都不做
-        if (typeof value !== 'object' || value === null ||
-            seen.has(value)) return
-        // 将数据添加到 seen 中，代表遍历地读取过了，避免循环引用引起的死循环
-        seen.add(value)
-        // 暂时不考虑数组等其他结构
-        // 假设 value 就是一个对象，使用 for...in 读取对象的每一个值，并递归地调用 traverse 进行处理
-        for (const k in value) {
-            traverse(value[k], seen)
-        }
-
-        return value
-    }
-
-
-    // 示例//////////////////////////////////////////////////
-    const data = {
-        foo: 1,
-        bar: 2
-    }
-    const obj = new Proxy(data, {
-        get(target, p, receiver) {
-            track(target, p)
-            return target[p]
-        },
-        set(target, p, value, receiver) {
-            target[p] = value
-            trigger(target, p)
-            return true
-        }
-    })
-
-
-    // 此处如果watch的是整个响应式数据，则无法取得oldValue和newValue
-    watch(() => obj.foo, (oldValue, newValue) => {
-        console.log('watch!')
-        console.log('oldValue: ', oldValue, 'newValue: ', newValue)
-    })
-
-    obj.foo++
-
-
-</script>
-
-<!-- ^\s*([0-9]+)[\.]* -->
