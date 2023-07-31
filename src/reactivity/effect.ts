@@ -10,7 +10,7 @@ class ReactiveEffect {
 }
 
 const targetMap = new Map();
-export function track(target, key) {
+export function track(target, key) { 
     // target -> key -> dep
     let depsMap = targetMap.get(target);
     if (!depsMap) {
